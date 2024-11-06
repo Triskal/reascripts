@@ -52,5 +52,4 @@ end
 -- End the undo block and update the item
 reaper.UpdateItemInProject(item)
 reaper.Undo_EndBlock("Resolve duplicate stretch markers", -1)
-reaper.ShowConsoleMsg("Script completed\n")
 
