@@ -1,5 +1,5 @@
 -- This script converts all stretch markers to splits in a selected item. 
--- After that I recommend using SWS/AW fill gaps action. This should process nicely edited
+-- After that I recommend using SWS/AW fill gaps action. This should produce nicely edited
 -- program material (intended mainly for drums) with no transient smearing while being able
 -- to utilize stretch markers in editing workflow.
 
