@@ -5,6 +5,11 @@
 -- Author: Simon J. Kok, simon.j.kok@gmail.com with help from ChatGPT
 -- Version: 1.1
 
+-- Changelog --
+-- 1.0: initial release
+-- 1.1: now calculates distance from project tempo and grid; also resolves all conflicts 
+--      at once, no longer requiring running the sript multiple times
+
 -- Function to calculate grid space in seconds
 function GetGridSpaceInSeconds()
   -- Get the current project tempo (in BPM)
