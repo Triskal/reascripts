@@ -1,41 +1,46 @@
--- Loops through stretch markers in selected media item. When it counters more than one stretch markers
--- at the same position, the latter stretch marker is snapped to the next grid position. This is my first
--- Reaper script and I used ChatGPT to get me started.
+-- Loops through stretch markers in selected media items and/or items in the same group. 
+-- When more than one stretch markers are encountered at the same position, the later stretch 
+-- marker is snapped to the next grid position. The process is repeated until no conflicts exist. 
+-- This is my first Reaper script and I used ChatGPT to get me started.
 
 -- Author: Simon J. Kok, simon.j.kok@gmail.com with help from ChatGPT
--- Version: 1.1
+-- Version: 1.2
 
 -- Changelog --
 -- 1.0: initial release
 -- 1.1: now calculates distance from project tempo and grid; also resolves all conflicts 
 --      at once, no longer requiring running the sript multiple times
+-- 1.2: now supports multiselect and resolves all items in a group when grouping is on
 
--- Function to calculate grid space in seconds
 function GetGridSpaceInSeconds()
-  -- Get the current project tempo (in BPM)
   local tempo = reaper.Master_GetTempo()
-
-    -- Get the grid division (in beats)
   local retval, gridDivision = reaper.GetSetProjectGrid(0, false)
-
-  -- Calculate the grid space in seconds
-  local gridSpaceInSeconds = (60 / tempo) *  (gridDivision * 4)
-  return gridSpaceInSeconds
+  local space = (60 / tempo) *  (gridDivision * 4)
+  return space
 end
 
-function ResolveDuplicateStretchMarkers(take)
+function ResolveDuplicateStretchMarkers(item)
+  if not item then
+    return
+  end
+  
+  local take = reaper.GetActiveTake(item)
+  
+  if not take then
+    return
+  end
+  
   -- Tolerance for comparing marker positions
   local tolerance = 0.0001
   local space = GetGridSpaceInSeconds()
   local duplicates = 0
-  -- Get the number of stretch markers
+  
   local marker_count = reaper.GetTakeNumStretchMarkers(take)
   if marker_count < 2 then
     reaper.ShowMessageBox("Not enough stretch markers", "Error", 0)
     return
   end
   
-  -- Loop through stretch markers
   for i = 0, marker_count - 2 do
     -- Get positions of current and next markers
     local _, pos_i, srcpos_i = reaper.GetTakeStretchMarker(take, i)
@@ -49,30 +54,50 @@ function ResolveDuplicateStretchMarkers(take)
     end
   end
   if(duplicates > 0) then
-    ResolveDuplicateStretchMarkers(take)
+    ResolveDuplicateStretchMarkers(item)
   end
 end
 
--- Ensure an item is selected
-local item = reaper.GetSelectedMediaItem(0, 0)
-if not item then
-  reaper.ShowMessageBox("No item selected", "Error", 0)
-  return
+function MatchGroup(itemA, itemB)
+  if reaper.GetToggleCommandState(1156) == 0 or itemA == nil or itemB == nil then
+    return false
+  end
+    
+  groupA = reaper.GetMediaItemInfo_Value(itemA, "I_GROUPID")
+  groupB = reaper.GetMediaItemInfo_Value(itemB, "I_GROUPID")
+  
+  if(groupA ~= groupB) then 
+    return false
+  end
+  
+  posA = reaper.GetMediaItemInfo_Value(itemA, "D_POSITION")
+  posB = reaper.GetMediaItemInfo_Value(itemB, "D_POSITION")
+  if posA == posB then
+    return true
+  end
+  
+  return false
 end
 
--- Get the active take of the selected media item
-local take = reaper.GetActiveTake(item)
-if not take then
-  reaper.ShowMessageBox("No active take found", "Error", 0)
-  return
+local selectedItem = reaper.GetSelectedMediaItem(0, 0)
+local itemList = {}
+
+for i = 0, reaper.CountMediaItems(0) do
+  local item = reaper.GetMediaItem(0, i)
+  
+  if item ~= nil then
+    if reaper.IsMediaItemSelected(item) or MatchGroup(selectedItem, item) then
+      table.insert(itemList, item)
+    end
+  end
 end
 
--- Begin an undo block
 reaper.Undo_BeginBlock()
 
-ResolveDuplicateStretchMarkers(take)
+for i = 1, #itemList do
+  ResolveDuplicateStretchMarkers(itemList[i])
+end
 
--- End the undo block and update the item
-reaper.UpdateItemInProject(item)
+reaper.UpdateArrange()
 reaper.Undo_EndBlock("Resolve duplicate stretch markers", -1)
 
