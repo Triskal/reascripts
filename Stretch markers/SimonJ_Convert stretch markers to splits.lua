@@ -9,6 +9,7 @@
 -- Changelog --
 -- 1.0: initial release
 -- 2.0: largely rewritten, now supports multiselection
+-- 2.1: Now supports grouping
 
 function trimMediaItem(item, pos, pad)
   local delete_this = reaper.SplitMediaItem(item, pos - pad)
@@ -70,7 +71,11 @@ function convertStretchMarkersToSplits(item, pad)
   end
 end
 
-function matchGroup(itemA, itemB)
+function MatchGroup(itemA, itemB)
+  if reaper.GetToggleCommandState(1156) == 0 or itemA == nil or itemB == nil then
+    return false
+  end
+    
   groupA = reaper.GetMediaItemInfo_Value(itemA, "I_GROUPID")
   groupB = reaper.GetMediaItemInfo_Value(itemB, "I_GROUPID")
   
@@ -87,27 +92,23 @@ function matchGroup(itemA, itemB)
   return false
 end
 
-reaper.ClearConsole();
-reaper.Undo_BeginBlock();
-
+local selectedItem = reaper.GetSelectedMediaItem(0, 0)
 -- In order to process multiple items at once, they must first
 -- be collected into an array, because the item index list gets
--- regenerated every time an item is added
+-- regenerated every time an item is split into multiple items
 local itemList = {}
 
 for i = 0, reaper.CountMediaItems(0) do
   local item = reaper.GetMediaItem(0, i)
   
   if item ~= nil then
-    if reaper.IsMediaItemSelected(item) then
+    if reaper.IsMediaItemSelected(item) or MatchGroup(selectedItem, item) then
       table.insert(itemList, item)
     end
-    --if matchGroup(selectedItem, item) then
-      --reaper.ShowConsoleMsg(selectedItemGroup .. "\n")
-      --convertStretchMarkersToSplits(item, 0.03)
-    --end
   end
 end
+
+reaper.Undo_BeginBlock();
 
 for i = 1, #itemList do
   convertStretchMarkersToSplits(itemList[i], 0.03)
